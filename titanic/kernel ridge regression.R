@@ -5,21 +5,19 @@
 ## setup for all regressions ##
 
 prepare = function (data.orig) {
-  data = data.orig[,c("Pclass","Sex", "Age","SibSp", "Parch", "Fare", "Embarked")]
+  data = data.orig[,c("Pclass","Sex", "Age","Embarked")]
   
   # one-hot encode
   encoded = model.matrix(~ (Sex-1) + (Embarked-1), data=data, 
                          contrasts.arg=list(Sex=contrasts(data$Sex, contrasts=F),
                                             Embarked=contrasts(data$Embarked, contrasts=F)))
-  data = cbind(data.orig[,c("Pclass", "Age","SibSp", "Parch", "Fare")], encoded)
+  data = cbind(data.orig[,c("Pclass", "Age")], encoded)
   
   # fill up null entries
   data[, "Age"][is.na(data[, "Age"])] <- mean(data[,"Age"], na.rm=TRUE)
   
   return(data)
 }
-
-set.seed(10)
 
 # prepare design matrix and response vector
 train.data.orig = read.csv("train.csv")
@@ -37,18 +35,18 @@ mu = mean(train.data[, "Age"], na.rm=TRUE)
 train.data[, "Age"] = train.data[, "Age"] - mu
 norm_param[1, 'offset'] = mu
 
-mu = mean(train.data[, "Fare"], na.rm=TRUE)
-train.data[, "Fare"] = train.data[, "Fare"] - mu
-norm_param[2, 'offset'] = mu
+#mu = mean(train.data[, "Fare"], na.rm=TRUE)
+#train.data[, "Fare"] = train.data[, "Fare"] - mu
+#norm_param[2, 'offset'] = mu
 
 # scale down by standard deviation
 std = sd(train.data[, "Age"])
 train.data[, "Age"] = train.data[, "Age"] / std
 norm_param[1, 'scale'] = std
 
-std = sd(train.data[, "Fare"])
-train.data[, "Fare"] = train.data[, "Fare"] / std
-norm_param[2, 'scale'] = std
+#std = sd(train.data[, "Fare"])
+#train.data[, "Fare"] = train.data[, "Fare"] / std
+#norm_param[2, 'scale'] = std
 
 # prepare for cross validation
 J = 5
@@ -61,7 +59,7 @@ test.data = as.matrix(sapply(test.data, as.numeric))
 
 # normalize and standardize data
 test.data[, "Age"] = (test.data[, "Age"] - norm_param[1, 'offset']) / norm_param[1, 'scale']
-test.data[, "Fare"] = (test.data[, "Fare"] - norm_param[2, 'offset']) / norm_param[2, 'scale']
+#test.data[, "Fare"] = (test.data[, "Fare"] - norm_param[2, 'offset']) / norm_param[2, 'scale']
 
 #-----------------------------------------------------------#
 
@@ -71,7 +69,7 @@ test.data[, "Fare"] = (test.data[, "Fare"] - norm_param[2, 'offset']) / norm_par
 # range identified after performing cross-validation
 # with Lambdas (0.001, 0.01, 1, 10, 100, 1000)
 # to determine order of magnitude
-Lambdas = c(0.001, 0.01, 1, 10, 100, 1000)
+Lambdas = c(0.001, 0.002, 0.005, 0.01, 0.05)
 k = length(Lambdas)
 
 # create kernel and kernel matrix
@@ -119,9 +117,8 @@ for (i in 1:k) {
 
 # find best performing lambda
 CV = CV / J
-lambda = 0.05#Lambdas[which.min(CV)]
+lambda = Lambdas[which.min(CV)]
 lambda
-
 
 # fit the model using the entire training set
 split.train = train.data
