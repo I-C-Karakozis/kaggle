@@ -11,7 +11,6 @@ prepare = function (data.orig) {
   encoded = model.matrix(~ (Sex-1) + (Embarked-1), data=data, 
                          contrasts.arg=list(Sex=contrasts(data$Sex, contrasts=F),
                                             Embarked=contrasts(data$Embarked, contrasts=F)))
-  encoded = encoded[, -3]
   data = cbind(data.orig[,c("Pclass", "Age","SibSp", "Parch", "Fare")], encoded)
   
   # fill up null entries
@@ -27,6 +26,7 @@ train.data.orig = read.csv("train.csv")
 response = train.data.orig[,c("Survived")]
 train.data = prepare(train.data.orig)
 train.data = as.matrix(sapply(train.data, as.numeric))
+train.data = train.data[,-8]
 train.size = dim(train.data)[1]
 
 ## normalize and standardize data
@@ -69,9 +69,9 @@ test.data[, "Fare"] = (test.data[, "Fare"] - norm_param[2, 'offset']) / norm_par
 
 # pick set of lambdas
 # range identified after performing cross-validation
-# with Lambdas (0.01, 0.01, 1, 10, 100, 1000)
+# with Lambdas (0.001, 0.01, 1, 10, 100, 1000)
 # to determine order of magnitude
-Lambdas = c(1, 10, 25, 50, 75, 100)
+Lambdas = c(0.001, 0.01, 1, 10, 100, 1000)
 k = length(Lambdas)
 
 # create kernel and kernel matrix
@@ -119,8 +119,9 @@ for (i in 1:k) {
 
 # find best performing lambda
 CV = CV / J
-lambda = Lambdas[which.min(CV)]
-# lambda = 10
+lambda = 0.05#Lambdas[which.min(CV)]
+lambda
+
 
 # fit the model using the entire training set
 split.train = train.data
@@ -146,43 +147,28 @@ for (s in 1:length(split.price)){
   }
   rss = rss + (pred - split.price[s]) ^ 2
 }
-rss_unscaled = rss * (norm_param[1, 'scale'])^2
+# rss_unscaled = rss * (norm_param[1, 'scale'])^2
 
 rss
 rss / dim(train.data)[1]
-rss_unscaled
-rss_unscaled / dim(train.data)[1]
-# rss (scaled): 796.7965
-# mean rss (scaled): 0.5311977
-# rss_unscaled: 9.46513e+13
-# mean rss_unscaled: 6.310087e+10
+# rss (scaled): 126.7726
+# mean rss (scaled): 0.1422812
 
-# compute RSS on testing set
-rss = 0
-for (s in 1:length(test.data.price)){
+# predictions on testing set
+predictions = numeric(dim(test.data)[1])
+for (s in 1:dim(test.data)[1]){
   pred = 0
   for (m in 1:length(split.price)) {
-    pred = pred + alpha[m] * kernel(test.data[s, ], split.train[m, ])
+    pred = pred + alpha[m] * kernel(test.data[s,], split.train[m, ])
   }
-  rss = rss + (pred - test.data.price[s]) ^ 2
+  predictions[s] = pred
 }
-rss_unscaled = rss * (norm_param[1, 'scale'])^2
 
-rss
-rss / dim(test.data)[1]
-rss_unscaled
-rss_unscaled / dim(test.data)[1]
-# rss (scaled): 3640.563
-# mean rss (scaled): 0.5614687
-# rss_unscaled: 4.324618e+14
-# mean rss_unscaled: 6.669676e+10
-
-# predict price of gates house
-pred = 0
-for (m in 1:length(split.price)) {
-  pred = pred + alpha[m] * kernel(gates.data, split.train[m, ])
-}
-pred = pred * norm_param[1, 'scale'] + norm_param[1, 'offset']
-# prediction: $14,667,813 (similar to OLS; undervalued)
+# normalize and allocate predictions
+predictions[][is.na(predictions[])] <- min(predictions, na.rm=TRUE)
+Survived = round(predictions)
+PassengerId = c((dim(train.data)[1]+1):(length(Survived)+dim(train.data)[1]))
+df = data.frame(PassengerId, Survived)
+write.csv(df, file = "predictions.csv", row.names=FALSE)
 
 #-----------------------------------------------------------#
