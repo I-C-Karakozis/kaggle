@@ -1,5 +1,4 @@
 # Author: Yannis Karakozis
-# ORF 350 HW4, Problem 3
 # 10/21/2017
 
 ## setup for all regressions ##
